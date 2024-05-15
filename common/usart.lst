@@ -1,0 +1,411 @@
+   1               		.file	"usart.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.file 0 "/home/vanilla/Documents/embedded/embedded_labs" "common/usart.c"
+  11               	.global	usart_init
+  13               	usart_init:
+  14               	.LVL0:
+  15               	.LFB4:
+  16               		.file 1 "common/usart.c"
+   1:common/usart.c **** #include "usart.h"
+   2:common/usart.c **** #include <avr/io.h> // Include here if avr/io.h is needed for USART functions
+   3:common/usart.c **** #include "bit.h"
+   4:common/usart.c **** 
+   5:common/usart.c **** #include <stdlib.h>
+   6:common/usart.c **** 
+   7:common/usart.c **** void usart_init(unsigned int ubrr)
+   8:common/usart.c **** {
+  17               		.loc 1 8 1 view -0
+  18               		.cfi_startproc
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+   9:common/usart.c ****   /*Set baud rate */
+  10:common/usart.c ****   UBRR0H = (unsigned char)(ubrr >> 8);
+  23               		.loc 1 10 3 view .LVU1
+  24               		.loc 1 10 10 is_stmt 0 view .LVU2
+  25 0000 9093 C500 		sts 197,r25
+  11:common/usart.c ****   UBRR0L = (unsigned char)ubrr;
+  26               		.loc 1 11 3 is_stmt 1 view .LVU3
+  27               		.loc 1 11 10 is_stmt 0 view .LVU4
+  28 0004 8093 C400 		sts 196,r24
+  12:common/usart.c ****   // Enable receiver and transmitter */
+  13:common/usart.c ****   // bitSet(UCSR0A, U2X0);
+  14:common/usart.c ****   UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+  29               		.loc 1 14 3 is_stmt 1 view .LVU5
+  30               		.loc 1 14 10 is_stmt 0 view .LVU6
+  31 0008 88E1      		ldi r24,lo8(24)
+  32               	.LVL1:
+  33               		.loc 1 14 10 view .LVU7
+  34 000a 8093 C100 		sts 193,r24
+  15:common/usart.c ****   /* Set frame format: 8data, 2stop bit */
+  16:common/usart.c ****   UCSR0C = (1 << USBS0) | (3 << UCSZ00);
+  35               		.loc 1 16 3 is_stmt 1 view .LVU8
+  36               		.loc 1 16 10 is_stmt 0 view .LVU9
+  37 000e E2EC      		ldi r30,lo8(-62)
+  38 0010 F0E0      		ldi r31,0
+  39 0012 8EE0      		ldi r24,lo8(14)
+  40 0014 8083      		st Z,r24
+  17:common/usart.c **** 
+  18:common/usart.c ****   bitSet(UCSR0C, UPM01);
+  41               		.loc 1 18 3 is_stmt 1 view .LVU10
+  42 0016 8081      		ld r24,Z
+  43 0018 8062      		ori r24,lo8(32)
+  44 001a 8083      		st Z,r24
+  45               	/* epilogue start */
+  19:common/usart.c **** }
+  46               		.loc 1 19 1 is_stmt 0 view .LVU11
+  47 001c 0895      		ret
+  48               		.cfi_endproc
+  49               	.LFE4:
+  51               	.global	usart_transmit
+  53               	usart_transmit:
+  54               	.LFB5:
+  20:common/usart.c **** 
+  21:common/usart.c **** void usart_transmit(unsigned char data)
+  22:common/usart.c **** {
+  55               		.loc 1 22 1 is_stmt 1 view -0
+  56               		.cfi_startproc
+  57               	/* prologue: function */
+  58               	/* frame size = 0 */
+  59               	/* stack size = 0 */
+  60               	.L__stack_usage = 0
+  61               	.LVL2:
+  62               	.L3:
+  23:common/usart.c ****   /* Wait for empty transmit buffer */
+  24:common/usart.c ****   while (!(UCSR0A & (1 << UDRE0)))
+  63               		.loc 1 24 10 discriminator 1 view .LVU13
+  64               		.loc 1 24 12 is_stmt 0 discriminator 1 view .LVU14
+  65 001e 9091 C000 		lds r25,192
+  66               		.loc 1 24 10 discriminator 1 view .LVU15
+  67 0022 95FF      		sbrs r25,5
+  68 0024 00C0      		rjmp .L3
+  25:common/usart.c ****     ;
+  26:common/usart.c ****   /* Put data into buffer, sends the data */
+  27:common/usart.c ****   UDR0 = data;
+  69               		.loc 1 27 3 is_stmt 1 view .LVU16
+  70               		.loc 1 27 8 is_stmt 0 view .LVU17
+  71 0026 8093 C600 		sts 198,r24
+  72               	/* epilogue start */
+  28:common/usart.c **** }
+  73               		.loc 1 28 1 view .LVU18
+  74 002a 0895      		ret
+  75               		.cfi_endproc
+  76               	.LFE5:
+  78               	.global	usart_tx_string
+  80               	usart_tx_string:
+  81               	.LVL3:
+  82               	.LFB6:
+  29:common/usart.c **** 
+  30:common/usart.c **** void usart_tx_string(const char *pStr)
+  31:common/usart.c **** {
+  83               		.loc 1 31 1 is_stmt 1 view -0
+  84               		.cfi_startproc
+  85               		.loc 1 31 1 is_stmt 0 view .LVU20
+  86 002c CF93      		push r28
+  87               		.cfi_def_cfa_offset 3
+  88               		.cfi_offset 28, -2
+  89 002e DF93      		push r29
+  90               		.cfi_def_cfa_offset 4
+  91               		.cfi_offset 29, -3
+  92               	/* prologue: function */
+  93               	/* frame size = 0 */
+  94               	/* stack size = 2 */
+  95               	.L__stack_usage = 2
+  96 0030 EC01      		movw r28,r24
+  32:common/usart.c ****   while (*pStr != '\0')
+  97               		.loc 1 32 3 is_stmt 1 view .LVU21
+  98               	.LVL4:
+  99               	.L7:
+ 100               		.loc 1 32 16 view .LVU22
+ 101               		.loc 1 32 10 is_stmt 0 view .LVU23
+ 102 0032 8991      		ld r24,Y+
+ 103               	.LVL5:
+ 104               		.loc 1 32 16 view .LVU24
+ 105 0034 8111      		cpse r24,__zero_reg__
+ 106 0036 00C0      		rjmp .L8
+ 107               	/* epilogue start */
+  33:common/usart.c ****   {
+  34:common/usart.c ****     usart_transmit(*pStr);
+  35:common/usart.c ****     pStr++;
+  36:common/usart.c ****   }
+  37:common/usart.c **** }
+ 108               		.loc 1 37 1 view .LVU25
+ 109 0038 DF91      		pop r29
+ 110 003a CF91      		pop r28
+ 111               	.LVL6:
+ 112               		.loc 1 37 1 view .LVU26
+ 113 003c 0895      		ret
+ 114               	.LVL7:
+ 115               	.L8:
+  34:common/usart.c ****     pStr++;
+ 116               		.loc 1 34 5 is_stmt 1 view .LVU27
+ 117 003e 0E94 0000 		call usart_transmit
+ 118               	.LVL8:
+  35:common/usart.c ****   }
+ 119               		.loc 1 35 5 view .LVU28
+  35:common/usart.c ****   }
+ 120               		.loc 1 35 5 is_stmt 0 view .LVU29
+ 121 0042 00C0      		rjmp .L7
+ 122               		.cfi_endproc
+ 123               	.LFE6:
+ 125               	.global	usart_tx_float
+ 127               	usart_tx_float:
+ 128               	.LVL9:
+ 129               	.LFB7:
+  38:common/usart.c **** 
+  39:common/usart.c **** void usart_tx_float(float x, char num_digits_int, int num_digits_decimal)
+  40:common/usart.c **** {
+ 130               		.loc 1 40 1 is_stmt 1 view -0
+ 131               		.cfi_startproc
+ 132               		.loc 1 40 1 is_stmt 0 view .LVU31
+ 133 0044 CF92      		push r12
+ 134               		.cfi_def_cfa_offset 3
+ 135               		.cfi_offset 12, -2
+ 136 0046 DF92      		push r13
+ 137               		.cfi_def_cfa_offset 4
+ 138               		.cfi_offset 13, -3
+ 139 0048 EF92      		push r14
+ 140               		.cfi_def_cfa_offset 5
+ 141               		.cfi_offset 14, -4
+ 142 004a FF92      		push r15
+ 143               		.cfi_def_cfa_offset 6
+ 144               		.cfi_offset 15, -5
+ 145 004c 0F93      		push r16
+ 146               		.cfi_def_cfa_offset 7
+ 147               		.cfi_offset 16, -6
+ 148 004e 1F93      		push r17
+ 149               		.cfi_def_cfa_offset 8
+ 150               		.cfi_offset 17, -7
+ 151 0050 CF93      		push r28
+ 152               		.cfi_def_cfa_offset 9
+ 153               		.cfi_offset 28, -8
+ 154 0052 DF93      		push r29
+ 155               		.cfi_def_cfa_offset 10
+ 156               		.cfi_offset 29, -9
+ 157 0054 00D0      		rcall .
+ 158               		.cfi_def_cfa_offset 12
+ 159 0056 CDB7      		in r28,__SP_L__
+ 160 0058 DEB7      		in r29,__SP_H__
+ 161               		.cfi_def_cfa_register 28
+ 162               	/* prologue: function */
+ 163               	/* frame size = 2 */
+ 164               	/* stack size = 10 */
+ 165               	.L__stack_usage = 10
+ 166 005a F62F      		mov r31,r22
+ 167 005c 582F      		mov r21,r24
+ 168 005e 392F      		mov r19,r25
+  41:common/usart.c ****   char num_elements = num_digits_int + num_digits_decimal + 1 + 1; // one decimal point and one nul
+  42:common/usart.c ****   char buffer[num_elements];
+  43:common/usart.c **** 
+  44:common/usart.c ****   dtostrf(x, num_elements - 1, num_digits_decimal, buffer);
+  45:common/usart.c ****   buffer[num_elements - 1] = '\0';
+  46:common/usart.c ****   usart_tx_string(buffer);
+  47:common/usart.c **** }
+ 169               		.loc 1 47 1 view .LVU32
+ 170 0060 8DB7      		in r24,__SP_L__
+ 171 0062 9EB7      		in r25,__SP_H__
+ 172 0064 9A83      		std Y+2,r25
+ 173 0066 8983      		std Y+1,r24
+  41:common/usart.c ****   char num_elements = num_digits_int + num_digits_decimal + 1 + 1; // one decimal point and one nul
+ 174               		.loc 1 41 3 is_stmt 1 view .LVU33
+  41:common/usart.c ****   char num_elements = num_digits_int + num_digits_decimal + 1 + 1; // one decimal point and one nul
+ 175               		.loc 1 41 38 is_stmt 0 view .LVU34
+ 176 0068 420F      		add r20,r18
+ 177               	.LVL10:
+  41:common/usart.c ****   char num_elements = num_digits_int + num_digits_decimal + 1 + 1; // one decimal point and one nul
+ 178               		.loc 1 41 8 view .LVU35
+ 179 006a 62E0      		ldi r22,lo8(2)
+ 180 006c E62E      		mov r14,r22
+ 181               	.LVL11:
+  41:common/usart.c ****   char num_elements = num_digits_int + num_digits_decimal + 1 + 1; // one decimal point and one nul
+ 182               		.loc 1 41 8 view .LVU36
+ 183 006e E40E      		add r14,r20
+ 184               	.LVL12:
+  42:common/usart.c **** 
+ 185               		.loc 1 42 3 is_stmt 1 view .LVU37
+  42:common/usart.c **** 
+ 186               		.loc 1 42 8 is_stmt 0 view .LVU38
+ 187 0070 F12C      		mov r15,__zero_reg__
+ 188 0072 8E19      		sub r24,r14
+ 189 0074 9F09      		sbc r25,r15
+ 190 0076 0FB6      		in __tmp_reg__,__SREG__
+ 191 0078 F894      		cli
+ 192 007a 9EBF      		out __SP_H__,r25
+ 193 007c 0FBE      		out __SREG__,__tmp_reg__
+ 194 007e 8DBF      		out __SP_L__,r24
+ 195 0080 0196      		adiw r24,1
+ 196 0082 6C01      		movw r12,r24
+ 197               	.LVL13:
+  44:common/usart.c ****   buffer[num_elements - 1] = '\0';
+ 198               		.loc 1 44 3 is_stmt 1 view .LVU39
+  44:common/usart.c ****   buffer[num_elements - 1] = '\0';
+ 199               		.loc 1 44 27 is_stmt 0 view .LVU40
+ 200 0084 4F5F      		subi r20,lo8(-(1))
+  44:common/usart.c ****   buffer[num_elements - 1] = '\0';
+ 201               		.loc 1 44 3 view .LVU41
+ 202 0086 8C01      		movw r16,r24
+ 203 0088 6F2F      		mov r22,r31
+ 204 008a 852F      		mov r24,r21
+ 205 008c 932F      		mov r25,r19
+ 206 008e 0E94 0000 		call dtostrf
+ 207               	.LVL14:
+  45:common/usart.c ****   usart_tx_string(buffer);
+ 208               		.loc 1 45 3 is_stmt 1 view .LVU42
+  45:common/usart.c ****   usart_tx_string(buffer);
+ 209               		.loc 1 45 28 is_stmt 0 view .LVU43
+ 210 0092 EC0C      		add r14,r12
+ 211 0094 FD1C      		adc r15,r13
+ 212               	.LVL15:
+  45:common/usart.c ****   usart_tx_string(buffer);
+ 213               		.loc 1 45 28 view .LVU44
+ 214 0096 F701      		movw r30,r14
+ 215 0098 3197      		sbiw r30,1
+ 216 009a 1082      		st Z,__zero_reg__
+  46:common/usart.c **** }
+ 217               		.loc 1 46 3 is_stmt 1 view .LVU45
+ 218 009c C601      		movw r24,r12
+ 219 009e 0E94 0000 		call usart_tx_string
+ 220               	.LVL16:
+ 221               		.loc 1 47 1 is_stmt 0 view .LVU46
+ 222 00a2 8981      		ldd r24,Y+1
+ 223 00a4 9A81      		ldd r25,Y+2
+ 224 00a6 0FB6      		in __tmp_reg__,__SREG__
+ 225 00a8 F894      		cli
+ 226 00aa 9EBF      		out __SP_H__,r25
+ 227 00ac 0FBE      		out __SREG__,__tmp_reg__
+ 228 00ae 8DBF      		out __SP_L__,r24
+ 229               	/* epilogue start */
+ 230 00b0 0F90      		pop __tmp_reg__
+ 231 00b2 0F90      		pop __tmp_reg__
+ 232 00b4 DF91      		pop r29
+ 233 00b6 CF91      		pop r28
+ 234 00b8 1F91      		pop r17
+ 235 00ba 0F91      		pop r16
+ 236 00bc FF90      		pop r15
+ 237 00be EF90      		pop r14
+ 238 00c0 DF90      		pop r13
+ 239 00c2 CF90      		pop r12
+ 240               	.LVL17:
+ 241               		.loc 1 47 1 view .LVU47
+ 242 00c4 0895      		ret
+ 243               		.cfi_endproc
+ 244               	.LFE7:
+ 246               	.Letext0:
+ 247               		.file 2 "/nix/store/1nazvqhvibp0q21v4gw9l34sqj8mjs0w-avr-gcc-13.2.0/avr/sys-include/stdint.h"
+ 248               		.file 3 "/nix/store/1nazvqhvibp0q21v4gw9l34sqj8mjs0w-avr-gcc-13.2.0/avr/sys-include/stdlib.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 usart.c
+     /tmp/cc1g3pZD.s:2      *ABS*:0000003e __SP_H__
+     /tmp/cc1g3pZD.s:3      *ABS*:0000003d __SP_L__
+     /tmp/cc1g3pZD.s:4      *ABS*:0000003f __SREG__
+     /tmp/cc1g3pZD.s:5      *ABS*:00000000 __tmp_reg__
+     /tmp/cc1g3pZD.s:6      *ABS*:00000001 __zero_reg__
+     /tmp/cc1g3pZD.s:13     .text:00000000 usart_init
+     /tmp/cc1g3pZD.s:17     .text:00000000 .Loc.0
+     /tmp/cc1g3pZD.s:18     .text:00000000 L0
+     /tmp/cc1g3pZD.s:23     .text:00000000 .Loc.1
+     /tmp/cc1g3pZD.s:24     .text:00000000 .Loc.2
+     /tmp/cc1g3pZD.s:26     .text:00000004 .Loc.3
+     /tmp/cc1g3pZD.s:27     .text:00000004 .Loc.4
+     /tmp/cc1g3pZD.s:29     .text:00000008 .Loc.5
+     /tmp/cc1g3pZD.s:30     .text:00000008 .Loc.6
+     /tmp/cc1g3pZD.s:33     .text:0000000a .Loc.7
+     /tmp/cc1g3pZD.s:35     .text:0000000e .Loc.8
+     /tmp/cc1g3pZD.s:36     .text:0000000e .Loc.9
+     /tmp/cc1g3pZD.s:41     .text:00000016 .Loc.10
+     /tmp/cc1g3pZD.s:46     .text:0000001c .Loc.11
+     /tmp/cc1g3pZD.s:48     .text:0000001e L0
+     /tmp/cc1g3pZD.s:53     .text:0000001e usart_transmit
+     /tmp/cc1g3pZD.s:55     .text:0000001e .Loc.12
+     /tmp/cc1g3pZD.s:56     .text:0000001e L0
+     /tmp/cc1g3pZD.s:63     .text:0000001e .Loc.13
+     /tmp/cc1g3pZD.s:64     .text:0000001e .Loc.14
+     /tmp/cc1g3pZD.s:66     .text:00000022 .Loc.15
+     /tmp/cc1g3pZD.s:69     .text:00000026 .Loc.16
+     /tmp/cc1g3pZD.s:70     .text:00000026 .Loc.17
+     /tmp/cc1g3pZD.s:73     .text:0000002a .Loc.18
+     /tmp/cc1g3pZD.s:75     .text:0000002c L0
+     /tmp/cc1g3pZD.s:80     .text:0000002c usart_tx_string
+     /tmp/cc1g3pZD.s:83     .text:0000002c .Loc.19
+     /tmp/cc1g3pZD.s:84     .text:0000002c L0
+     /tmp/cc1g3pZD.s:85     .text:0000002c .Loc.20
+     /tmp/cc1g3pZD.s:97     .text:00000032 .Loc.21
+     /tmp/cc1g3pZD.s:100    .text:00000032 .Loc.22
+     /tmp/cc1g3pZD.s:101    .text:00000032 .Loc.23
+     /tmp/cc1g3pZD.s:104    .text:00000034 .Loc.24
+     /tmp/cc1g3pZD.s:108    .text:00000038 .Loc.25
+     /tmp/cc1g3pZD.s:112    .text:0000003c .Loc.26
+     /tmp/cc1g3pZD.s:116    .text:0000003e .Loc.27
+     /tmp/cc1g3pZD.s:119    .text:00000042 .Loc.28
+     /tmp/cc1g3pZD.s:120    .text:00000042 .Loc.29
+     /tmp/cc1g3pZD.s:122    .text:00000044 L0
+     /tmp/cc1g3pZD.s:127    .text:00000044 usart_tx_float
+     /tmp/cc1g3pZD.s:130    .text:00000044 .Loc.30
+     /tmp/cc1g3pZD.s:131    .text:00000044 L0
+     /tmp/cc1g3pZD.s:132    .text:00000044 .Loc.31
+     /tmp/cc1g3pZD.s:157    .text:00000056 L0
+     /tmp/cc1g3pZD.s:169    .text:00000060 .Loc.32
+     /tmp/cc1g3pZD.s:174    .text:00000068 .Loc.33
+     /tmp/cc1g3pZD.s:175    .text:00000068 .Loc.34
+     /tmp/cc1g3pZD.s:178    .text:0000006a .Loc.35
+     /tmp/cc1g3pZD.s:182    .text:0000006e .Loc.36
+     /tmp/cc1g3pZD.s:185    .text:00000070 .Loc.37
+     /tmp/cc1g3pZD.s:186    .text:00000070 .Loc.38
+     /tmp/cc1g3pZD.s:198    .text:00000084 .Loc.39
+     /tmp/cc1g3pZD.s:199    .text:00000084 .Loc.40
+     /tmp/cc1g3pZD.s:201    .text:00000086 .Loc.41
+     /tmp/cc1g3pZD.s:208    .text:00000092 .Loc.42
+     /tmp/cc1g3pZD.s:209    .text:00000092 .Loc.43
+     /tmp/cc1g3pZD.s:213    .text:00000096 .Loc.44
+     /tmp/cc1g3pZD.s:217    .text:0000009c .Loc.45
+     /tmp/cc1g3pZD.s:221    .text:000000a2 .Loc.46
+     /tmp/cc1g3pZD.s:241    .text:000000c4 .Loc.47
+     /tmp/cc1g3pZD.s:243    .text:000000c6 L0
+     /tmp/cc1g3pZD.s:249    .text:000000c6 L0
+                     .debug_frame:00000000 L0
+     /tmp/cc1g3pZD.s:62     .text:0000001e .L3
+     /tmp/cc1g3pZD.s:115    .text:0000003e .L8
+     /tmp/cc1g3pZD.s:99     .text:00000032 .L7
+     /tmp/cc1g3pZD.s:478    .debug_abbrev:00000000 .Ldebug_abbrev0
+     /tmp/cc1g3pZD.s:8      .text:00000000 .Ltext0
+     /tmp/cc1g3pZD.s:246    .text:000000c6 .Letext0
+     /tmp/cc1g3pZD.s:984    .debug_line:00000000 .Ldebug_line0
+     /tmp/cc1g3pZD.s:129    .text:00000044 .LFB7
+     /tmp/cc1g3pZD.s:244    .text:000000c6 .LFE7
+     /tmp/cc1g3pZD.s:766    .debug_loclists:00000010 .LLST4
+     /tmp/cc1g3pZD.s:761    .debug_loclists:0000000c .LVUS4
+     /tmp/cc1g3pZD.s:799    .debug_loclists:00000030 .LLST5
+     /tmp/cc1g3pZD.s:794    .debug_loclists:0000002c .LVUS5
+     /tmp/cc1g3pZD.s:825    .debug_loclists:00000049 .LLST6
+     /tmp/cc1g3pZD.s:820    .debug_loclists:00000045 .LVUS6
+     /tmp/cc1g3pZD.s:854    .debug_loclists:00000067 .LLST7
+     /tmp/cc1g3pZD.s:851    .debug_loclists:00000065 .LVUS7
+     /tmp/cc1g3pZD.s:864    .debug_loclists:00000070 .LLST8
+     /tmp/cc1g3pZD.s:861    .debug_loclists:0000006e .LVUS8
+     /tmp/cc1g3pZD.s:207    .text:00000092 .LVL14
+     /tmp/cc1g3pZD.s:220    .text:000000a2 .LVL16
+     /tmp/cc1g3pZD.s:82     .text:0000002c .LFB6
+     /tmp/cc1g3pZD.s:123    .text:00000044 .LFE6
+     /tmp/cc1g3pZD.s:883    .debug_loclists:00000083 .LLST2
+     /tmp/cc1g3pZD.s:872    .debug_loclists:00000079 .LVUS2
+     /tmp/cc1g3pZD.s:118    .text:00000042 .LVL8
+     /tmp/cc1g3pZD.s:54     .text:0000001e .LFB5
+     /tmp/cc1g3pZD.s:76     .text:0000002c .LFE5
+     /tmp/cc1g3pZD.s:932    .debug_loclists:000000b2 .LLST1
+     /tmp/cc1g3pZD.s:929    .debug_loclists:000000b0 .LVUS1
+     /tmp/cc1g3pZD.s:15     .text:00000000 .LFB4
+     /tmp/cc1g3pZD.s:49     .text:0000001e .LFE4
+     /tmp/cc1g3pZD.s:944    .debug_loclists:000000bc .LLST0
+     /tmp/cc1g3pZD.s:939    .debug_loclists:000000b8 .LVUS0
+     /tmp/cc1g3pZD.s:250    .debug_info:00000000 .Ldebug_info0
+
+UNDEFINED SYMBOLS
+dtostrf

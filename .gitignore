@@ -1,1 +1,6 @@
 /.direnv/
+/src/main.d
+src/main.elf
+src/main.hex
+src/main.lst
+src/main.map

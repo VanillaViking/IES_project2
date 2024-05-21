@@ -38,8 +38,6 @@ ISR(INT1_vect) {
   if (motor_duty < 0) {
     motor_duty = 0;
   }
-
-  OCR1B = 65535 * motor_duty;
 }
 
 // rotary button
@@ -96,14 +94,16 @@ int main(void) {
 
   while(1)
   {
-    bitSet(PORTB,PB5);
+    bitSet(PORTB,PD6);
     _delay_ms(100);
-    bitClear(PORTB,PB5);
+    bitClear(PORTB,PD6);
     _delay_ms(100);
     debounce = 0;
+    OCR1B = 65535 * motor_duty;
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
+    usart_transmit('\n');
     usart_tx_string(">b:");
     usart_tx_float(rotary_button_toggle, 1, 2);
     usart_transmit('\n');

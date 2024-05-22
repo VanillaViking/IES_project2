@@ -19,7 +19,7 @@
 #define LED PB5
 #define INPUT PC0
 
-volatile float motor_duty = 0.5;
+volatile float motor_duty = 0.7;
 //prevents external interrupt from triggering too many increments
 volatile bool debounce = 0;
 volatile bool rotary_button_toggle = 0;
@@ -43,8 +43,8 @@ ISR(INT1_vect) {
   if (motor_duty > 0.98) {
     motor_duty = 0.98;
   }
-  if (motor_duty < 0.5) {
-    motor_duty = 0.5;
+  if (motor_duty < 0.3) {
+    motor_duty = 0.3;
   }
 }
 
@@ -131,13 +131,13 @@ int main(void) {
     usart_tx_float(COMPARE,3,1);
     usart_transmit('\n');
 
-    if(COMPARE)
+    if(COMPARE && !rotary_button_toggle)
     {
-        bitSet(PORTB,LED);
+        bitSet(PORTB,M1_PSTV_DIRECTION);
     }
-    if(!COMPARE)
+    else
     {
-        bitClear(PORTB,LED);
+        bitClear(PORTB,M1_PSTV_DIRECTION);
     }
     
     bitSet(ADCSRA,ADSC); // Start ADC conversion

@@ -10,6 +10,9 @@
 #define ROTARY_DT PD3
 // normally open, shorted to GND on press
 #define ROTARY_BTN PD2
+#define M1_PWM PB2
+#define M1_PSTV_DIRECTION PB5
+#define M1_NGTV_DIRECTION PB4
 
 volatile float motor_duty = 0.5;
 //prevents external interrupt from triggering too many increments
@@ -35,7 +38,6 @@ ISR(INT1_vect) {
   if (motor_duty < 0) {
     motor_duty = 0;
   }
-
 }
 
 // rotary button
@@ -57,10 +59,10 @@ int main(void) {
   bitClear(DDRD,ROTARY_CLK);
   bitClear(DDRD,ROTARY_DT);
   bitClear(DDRD,ROTARY_BTN);
-  
+
   // enable pullup resistor
   bitSet(PORTD, ROTARY_BTN);
-  
+
   bitSet(EICRA, ISC01);
   bitClear(EICRA, ISC00);
   bitSet(EIMSK, INT0);
@@ -69,20 +71,43 @@ int main(void) {
   bitSet(EICRA, ISC10);
   bitSet(EIMSK, INT1);
 
+  //Initialise PWM, phase correct to have TOP = OCR1A
+  bitSet(TCCR1B, WGM13);
+  bitSet(TCCR1A, WGM10);
+  bitSet(TCCR1A, WGM11);
+
+  bitSet(TCCR1A, COM1B1);
+
+  //Initialise TC1 with prescaler of 8
+  bitSet(TCCR1B, CS11);
+
+  //Set PWM pin, Positive & Negative direction pins
+  bitSet(DDRB, M1_PWM);
+  bitSet(DDRB, M1_PSTV_DIRECTION);
+  bitSet(PORTB, M1_PSTV_DIRECTION);
+  bitSet(DDRB, M1_NGTV_DIRECTION);
+  bitClear(PORTB, M1_NGTV_DIRECTION);
+
+  OCR1A = 65535;
+  OCR1B = 65535;
   sei();
 
   while(1)
   {
-    bitSet(PORTB,PB5);
+    bitSet(PORTB,PD6);
     _delay_ms(100);
-    bitClear(PORTB,PB5);
+    bitClear(PORTB,PD6);
     _delay_ms(100);
     debounce = 0;
+    OCR1B = 65535 * motor_duty;
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
+    usart_transmit('\n');
     usart_tx_string(">b:");
     usart_tx_float(rotary_button_toggle, 1, 2);
     usart_transmit('\n');
   }
 }
+
+

@@ -94,10 +94,6 @@ int main(void) {
 
   while(1)
   {
-    bitSet(PORTB,PD6);
-    _delay_ms(100);
-    bitClear(PORTB,PD6);
-    _delay_ms(100);
     debounce = 0;
     OCR1B = 65535 * motor_duty;
 

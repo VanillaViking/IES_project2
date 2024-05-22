@@ -90,15 +90,15 @@ int main(void) {
   bitSet(EICRA, ISC10);
   bitSet(EIMSK, INT1);
 
-  //Initialise PWM, phase correct to have TOP = OCR1A
-  bitSet(TCCR1B, WGM13);
-  bitSet(TCCR1A, WGM10);
-  bitSet(TCCR1A, WGM11);
+  //Initialise PWM, phase correct to have TOP = OCRA
+  bitSet(TCCR2B, WGM22);
+  bitSet(TCCR2A, WGM20);
 
-  bitSet(TCCR1A, COM1B1);
+  bitSet(TCCR2A, COM2B1);
+  bitSet(TCCR2A, COM2B0);
 
   //Initialise TC1 with prescaler of 8
-  bitSet(TCCR1B, CS11);
+  bitSet(TCCR2B, CS21);
 
   //Set PWM pin, Positive & Negative direction pins
   bitSet(DDRB, M1_PWM);

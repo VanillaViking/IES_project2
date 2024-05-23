@@ -29,9 +29,11 @@ enum ROTARY_STATE {
   CLOCKWISE,
   ANTICLOCKWISE
 };
+
 volatile float motor_duty = 0.7;
-volatile bool rotary_button_toggle = 0;
+volatile bool rotary_button_toggle = 1;
 volatile int rotary_state = START;
+
 unsigned char data_buffer[BUFFER_SIZE];
 unsigned char *pTx = data_buffer;
 
@@ -52,6 +54,7 @@ ISR(INT1_vect) {
         if (clk) {
           rotary_state = INTENT_ANTICLOCKWISE;
         } else {
+          // invalid state
           rotary_state = START;
         }
       }
@@ -64,6 +67,7 @@ ISR(INT1_vect) {
         if (!clk) {
           rotary_state = CLOCKWISE;
         } else {
+          // invalid state
           rotary_state = START;
         }
       }
@@ -84,6 +88,7 @@ ISR(INT0_vect) {
         if (dt) {
           rotary_state = INTENT_CLOCKWISE;
         } else {
+          // invalid state
           rotary_state = START;
         }
       }
@@ -96,6 +101,7 @@ ISR(INT0_vect) {
         if (!dt) {
           rotary_state = ANTICLOCKWISE;
         } else {
+          // invalid state
           rotary_state = START;
         }
       }
@@ -150,21 +156,25 @@ int main(void) {
   bitSet(TCCR0A, WGM00);
   bitSet(TCCR0A, COM0B1);
 
-  //Initialise TC0 with prescaler of 256
+  //Initialise TC0 with prescaler of 1024
   bitSet(TCCR0B, CS02);
+  bitSet(TCCR0B, CS00);
 
   bitClear(TCCR0B, FOC0A);
   bitClear(TCCR0B, FOC0B);
 
   //Set PWM pin, Positive & Negative direction pins
-  bitSet(DDRB, M1_PWM);
+  bitSet(DDRD, M1_PWM);
   bitSet(DDRB, M1_PSTV_DIRECTION);
   bitSet(PORTB, M1_PSTV_DIRECTION);
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  OCR0A = 255;
-  OCR0B = 190;
+  //set USART interrupts
+  bitSet(UCSR0B, UDRIE0);
+  bitSet(SREG, SREG_I);
+
+  OCR0A = 78;
   sei();
 
   while(1)
@@ -172,12 +182,12 @@ int main(void) {
     bitSet(PORTB,PD6);
     bitClear(PORTB,PD6);
 
-    /* if(COMPARE > 0) { */
-    /*   OCR0B = 190; */
-    /* } */
-    /* else { */
-    /*   OCR0B = 1; */
-    /* } */
+    if(COMPARE > 0 && rotary_button_toggle) {
+      OCR0B = (int)(78 * motor_duty);
+    }
+    else {
+      OCR0B = 1;
+    }
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
@@ -239,7 +249,12 @@ void handle_rotary() {
   if (motor_duty < 0.1) {
     motor_duty = 0.1;
   }
-  /* if (bitRead()) */
+  if (bitRead(PIND, ROTARY_BTN) == 0) {
+    _delay_ms(60);
+    if (bitRead(PIND, ROTARY_BTN) == 0) {
+      rotary_button_toggle = !rotary_button_toggle;
+    }
+  }
 }
 
 float result_to_tempC(uint16_t result)

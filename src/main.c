@@ -8,15 +8,14 @@
 
 #define ROTARY_CLK PD4
 #define ROTARY_DT PD3
-// normally open, shorted to GND on press
-#define ROTARY_BTN PD2
-#define M1_PWM PB2
+#define ROTARY_BTN PD2 // normally open, shorted to GND on press
+
+#define M1_PWM PD5
 #define M1_PSTV_DIRECTION PB5
 #define M1_NGTV_DIRECTION PB4
 
 #define THERMISTOR PD6
 #define POTENTIOMETER PD7
-#define LED PB5
 #define INPUT PC0
 
 volatile float motor_duty = 0.5;
@@ -63,13 +62,10 @@ int main(void) {
   usart_init(8);
   adc_init();
 
-  bitSet(DDRB,PB5);
-
   // Set as inputs
   bitClear(DDRD,THERMISTOR);    // AIN0
   bitClear(DDRD,POTENTIOMETER); // AIN1
 
-  bitSet(DDRB,LED); // LED
 
   int channelswap = 0;
   int COMPARE;
@@ -91,34 +87,30 @@ int main(void) {
   bitSet(EIMSK, INT1);
 
   //Initialise PWM, phase correct to have TOP = OCRA
-  bitSet(TCCR2B, WGM22);
-  bitSet(TCCR2A, WGM20);
-
-  bitSet(TCCR2A, COM2B1);
-  bitSet(TCCR2A, COM2B0);
+  bitSet(TCCR0B, WGM02);
+  bitSet(TCCR0A, WGM00);
+  bitSet(TCCR0A, COM0B1);
 
   //Initialise TC1 with prescaler of 8
-  bitSet(TCCR2B, CS21);
+  bitSet(TCCR0B, CS01);
+
+  bitClear(TCCR0B, FOC0A);
+  bitClear(TCCR0B, FOC0B);
 
   //Set PWM pin, Positive & Negative direction pins
-  bitSet(DDRB, M1_PWM);
+  bitSet(DDRD, M1_PWM);
   bitSet(DDRB, M1_PSTV_DIRECTION);
   bitSet(PORTB, M1_PSTV_DIRECTION);
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  OCR1A = 65535;
-  OCR1B = 65535;
+  OCR0A = 255;
   sei();
 
   while(1)
   {
-    bitSet(PORTB,PD6);
-    _delay_ms(100);
-    bitClear(PORTB,PD6);
     debounce = 0;
-    OCR1B = 65535 * motor_duty;
-
+    OCR0B = 255 * motor_duty;
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
     usart_transmit('\n');
@@ -130,15 +122,6 @@ int main(void) {
     usart_tx_string(">OUTPUT:");
     usart_tx_float(COMPARE,3,1);
     usart_transmit('\n');
-
-    if(COMPARE)
-    {
-        bitSet(PORTB,LED);
-    }
-    if(!COMPARE)
-    {
-        bitClear(PORTB,LED);
-    }
 
     bitSet(ADCSRA,ADSC); // Start ADC conversion
     while(bitRead(ADCSRA,ADSC));

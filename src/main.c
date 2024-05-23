@@ -150,13 +150,14 @@ int main(void) {
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
   OCR1A = 10000;
-  OCR1B = (int)(10000 * motor_duty);
   sei();
 
   while(1)
   {
     bitSet(PORTB,PD6);
     bitClear(PORTB,PD6);
+
+    OCR1B = (int)(10000 * motor_duty);
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
@@ -168,18 +169,6 @@ int main(void) {
 
     usart_tx_string(">OUTPUT:");
     usart_tx_float(COMPARE,3,1);
-    usart_transmit('\n');
-
-    usart_tx_string(">DT:");
-    usart_tx_float(bitRead(PIND, ROTARY_DT),7,1);
-    usart_transmit('\n');
-
-    usart_tx_string(">CLK:");
-    usart_tx_float(bitRead(PIND, ROTARY_CLK),7,1);
-    usart_transmit('\n');
-
-    usart_tx_string(">STATE:");
-    usart_tx_float(rotary_state,7,1);
     usart_transmit('\n');
 
     handle_rotary();
@@ -238,6 +227,7 @@ void handle_rotary() {
   if (motor_duty < 0.1) {
     motor_duty = 0.1;
   }
+  /* if (bitRead()) */
 }
 
 float result_to_tempC(uint16_t result)

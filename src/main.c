@@ -10,7 +10,8 @@
 #define ROTARY_DT PD3
 // normally open, shorted to GND on press
 #define ROTARY_BTN PD4
-#define M1_PWM PB2
+
+#define M1_PWM PD5
 #define M1_PSTV_DIRECTION PB5
 #define M1_NGTV_DIRECTION PB4
 
@@ -18,6 +19,8 @@
 #define POTENTIOMETER PD7
 #define LED PB5
 #define INPUT PC0
+
+#define BUFFER_SIZE 50
 
 enum ROTARY_STATE {
   START,
@@ -29,7 +32,8 @@ enum ROTARY_STATE {
 volatile float motor_duty = 0.7;
 volatile bool rotary_button_toggle = 0;
 volatile int rotary_state = START;
-
+unsigned char data_buffer[BUFFER_SIZE];
+unsigned char *pTx = data_buffer;
 
 void adc_init();
 float result_to_tempC(uint16_t result);
@@ -99,6 +103,15 @@ ISR(INT0_vect) {
      
 }
 
+ISR(USART_UDRE_vect) {
+  if(*pTx == '\0') {
+    pTx = data_buffer;
+  } else {
+    UDR0 = *pTx;
+    pTx++;
+  }
+}
+
 int main(void) {
   // beginning of pain
   cli();
@@ -132,15 +145,16 @@ int main(void) {
   bitSet(EICRA, ISC10);
   bitSet(EIMSK, INT1);
 
-  //Initialise PWM, phase correct to have TOP = OCR1A
-  bitSet(TCCR1B, WGM13);
-  bitSet(TCCR1A, WGM10);
-  bitSet(TCCR1A, WGM11);
+  //Initialise PWM, phase correct to have TOP = OCRA
+  bitSet(TCCR0B, WGM02);
+  bitSet(TCCR0A, WGM00);
+  bitSet(TCCR0A, COM0B1);
 
-  bitSet(TCCR1A, COM1B1);
+  //Initialise TC0 with prescaler of 256
+  bitSet(TCCR0B, CS02);
 
-  //Initialise TC1 with prescaler of 8
-  bitSet(TCCR1B, CS11);
+  bitClear(TCCR0B, FOC0A);
+  bitClear(TCCR0B, FOC0B);
 
   //Set PWM pin, Positive & Negative direction pins
   bitSet(DDRB, M1_PWM);
@@ -149,7 +163,8 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  OCR1A = 10000;
+  OCR0A = 255;
+  OCR0B = 190;
   sei();
 
   while(1)
@@ -157,7 +172,12 @@ int main(void) {
     bitSet(PORTB,PD6);
     bitClear(PORTB,PD6);
 
-    OCR1B = (int)(10000 * motor_duty);
+    /* if(COMPARE > 0) { */
+    /*   OCR0B = 190; */
+    /* } */
+    /* else { */
+    /*   OCR0B = 1; */
+    /* } */
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
@@ -173,14 +193,6 @@ int main(void) {
 
     handle_rotary();
 
-    if(COMPARE && !rotary_button_toggle)
-    {
-        bitSet(PORTB,M1_PSTV_DIRECTION);
-    }
-    else
-    {
-        bitClear(PORTB,M1_PSTV_DIRECTION);
-    }
     
     bitSet(ADCSRA,ADSC); // Start ADC conversion
     while(bitRead(ADCSRA,ADSC));

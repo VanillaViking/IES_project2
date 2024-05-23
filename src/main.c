@@ -27,7 +27,7 @@ volatile float motor_duty = 0.5;
 volatile bool debounce = 0;
 volatile bool rotary_button_toggle = 0;
 volatile bool acic_result = 0;
-
+volatile int compare = 0;
 unsigned char data_buffer[BUFFER_SIZE];
 unsigned char *pTx = data_buffer;
 
@@ -72,6 +72,16 @@ ISR(USART_UDRE_vect) {
   }
 }
 
+ISR(ANALOG_COMP_vect) {
+  bitClear(ACSR, ACIE);
+  bitSet(ACSR, ACD);
+  compare = 35*bitRead(ACSR,ACO);
+  bitClear(ACSR, ACD);
+  bitSet(ACSR, ACIE);
+  bitInverse(ACSR, ACIS0);
+}
+
+
 int main(void) {
   // beginning of pain
   cli();
@@ -83,7 +93,6 @@ int main(void) {
   bitClear(DDRD,POTENTIOMETER); // AIN1
 
   int channelswap = 0;
-  int COMPARE;
   uint16_t therm_read, pot_read;
 
   bitClear(DDRD,ROTARY_CLK);
@@ -122,11 +131,15 @@ int main(void) {
   //set USART interrupts
   bitSet(UCSR0B, UDRIE0);
   bitSet(SREG, SREG_I);
+
+  bitSet(ACSR, ACIE);
+  bitSet(ACSR, ACIS1);
+  bitSet(ACSR, ACIS0);
+
   OCR0A = 255;
   OCR0B = 255;
 
   sei();
-
   while(1)
   {
     debounce = 0;
@@ -134,15 +147,15 @@ int main(void) {
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
     usart_transmit('\n');
-    COMPARE = 35*bitRead(ACSR,ACO);
-    if(COMPARE > 0) {
+
+    if(compare > 0) {
       OCR0B = 1;
     } else {
       OCR0B = 255 * motor_duty;
     }
 
     usart_tx_string(">OUTPUT:");
-    usart_tx_float(COMPARE,3,1);
+    usart_tx_float(compare,3,0);
     usart_transmit('\n');
 
     bitSet(ADCSRA,ADSC); // Start ADC conversion

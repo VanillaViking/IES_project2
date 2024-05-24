@@ -5,6 +5,7 @@
 
 #include "usart.h"
 #include "bit.h"
+#include "usart_queue.h"
 
 #define ROTARY_CLK PD2
 #define ROTARY_DT PD3
@@ -20,8 +21,6 @@
 #define LED PB5
 #define INPUT PC0
 
-#define BUFFER_SIZE 50
-
 enum ROTARY_STATE {
   START,
   INTENT_CLOCKWISE,
@@ -33,9 +32,7 @@ enum ROTARY_STATE {
 volatile float motor_duty = 0.7;
 volatile bool rotary_button_toggle = 1;
 volatile int rotary_state = START;
-
-unsigned char data_buffer[BUFFER_SIZE];
-unsigned char *pTx = data_buffer;
+Queue usart_queue;
 
 void adc_init();
 float result_to_tempC(uint16_t result);
@@ -110,11 +107,8 @@ ISR(INT0_vect) {
 }
 
 ISR(USART_UDRE_vect) {
-  if(*pTx == '\0') {
-    pTx = data_buffer;
-  } else {
-    UDR0 = *pTx;
-    pTx++;
+  if (!is_empty(&usart_queue)) {
+    UDR0 = dequeue(&usart_queue);
   }
 }
 
@@ -172,10 +166,12 @@ int main(void) {
 
   //set USART interrupts
   bitSet(UCSR0B, UDRIE0);
-  bitSet(SREG, SREG_I);
+  /* bitSet(SREG, SREG_I); */
 
   OCR0A = 78;
   sei();
+
+  usart_queue = queue_init();
 
   while(1)
   {
@@ -189,17 +185,18 @@ int main(void) {
       OCR0B = 1;
     }
 
-    usart_tx_string(">a:");
-    usart_tx_float(motor_duty, 1, 2);
-    usart_transmit('\n');
-    usart_tx_string(">b:");
-    usart_tx_float(rotary_button_toggle, 1, 2);
-    usart_transmit('\n');
+    enqueue_string(&usart_queue, ">a:");
+    enqueue_float(&usart_queue, motor_duty, 2, 3);
+    enqueue(&usart_queue, '\n');
+
+    enqueue_string(&usart_queue, ">b:");
+    enqueue_float(&usart_queue, rotary_button_toggle, 1, 2);
+    enqueue(&usart_queue, '\n');
     COMPARE = 35*bitRead(ACSR,ACO);
 
-    usart_tx_string(">OUTPUT:");
-    usart_tx_float(COMPARE,3,1);
-    usart_transmit('\n');
+    enqueue_string(&usart_queue, ">OUTPUT:");
+    enqueue_float(&usart_queue, COMPARE + 0.0,3,1);
+    enqueue(&usart_queue, '\n');
 
     handle_rotary();
 
@@ -211,17 +208,17 @@ int main(void) {
     {
         therm_read = ADC;
 
-        usart_tx_string(">Thermistor Temperature (C):");
-        usart_tx_float(result_to_tempC(therm_read),7,1);
-        usart_transmit('\n');
+        enqueue_string(&usart_queue, ">Thermistor Temperature (C):");
+        enqueue_float(&usart_queue, result_to_tempC(therm_read),7,1);
+        enqueue(&usart_queue, '\n');
     }
     if(channelswap)
     {
         pot_read = ADC;
 
-        usart_tx_string(">Potentiometer Temperature (C):");
-        usart_tx_float(result_to_tempC(pot_read),7,1);
-        usart_transmit('\n');
+        enqueue_string(&usart_queue, ">Potentiometer Temperature (C):");
+        enqueue_float(&usart_queue, result_to_tempC(pot_read),7,1);
+        enqueue(&usart_queue, '\n');
     }
 
     channelswap = !channelswap;

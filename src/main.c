@@ -3,7 +3,6 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdlib.h>
 
 #include "usart.h"
 #include "bit.h"
@@ -20,23 +19,12 @@
 
 #define THERMISTOR PD6
 #define POTENTIOMETER PD7
+#define LED PB5
 #define INPUT PC0
 
 #define CHAR_BUFFER 25
 #define TOP 2000
 #define CLOCKF 1000 // Frequency of T1 clock
-
-int COMPARE = 0;  // Set if Thermistor value is > Potentiometer value
-uint16_t therm_read, pot_read;
-char status[CHAR_BUFFER];
-char system_uptime[CHAR_BUFFER];
-bool risingcaptured = 0;
-double numOv = 0;
-double ICtimecapt;
-double FanTURNONtime;
-double FanTURNOFFtime;
-bool status_changed = 0;
-Queue usart_queue;
 
 enum ROTARY_STATE {
   START,
@@ -50,10 +38,22 @@ volatile float motor_duty = 0.7;
 volatile bool rotary_button_toggle = 1;
 volatile int rotary_state = START;
 
+uint16_t therm_read, pot_read;
+char status[CHAR_BUFFER];
+char system_uptime[CHAR_BUFFER];
+bool risingcaptured = 0;
+double numOv = 0;
+double ICtimecapt;
+double FanTURNONtime;
+double FanTURNOFFtime;
+bool status_changed = 0;
+Queue usart_queue;
+
+int COMPARE = 0;
+
 void adc_init();
 void t1_init();
 float result_to_tempC(uint16_t result);
-void clock_to_time(double clocktime, char timedisp[]);
 void handle_rotary();
 
 ISR(TIMER1_COMPA_vect){
@@ -85,6 +85,7 @@ ISR(TIMER1_CAPT_vect){
     }
     _delay_ms(30);
 }
+
 // DT INTERRUPT
 ISR(INT1_vect) {
   bool dt = bitRead(PIND, ROTARY_DT);
@@ -116,7 +117,7 @@ ISR(INT1_vect) {
         }
       }
   }
-
+  
 }
 
 // CLK INTERRUPT
@@ -150,7 +151,7 @@ ISR(INT0_vect) {
         }
       }
   }
-
+     
 }
 
 ISR(USART_UDRE_vect) {
@@ -160,7 +161,14 @@ ISR(USART_UDRE_vect) {
 }
 
 int main(void) {
-  // I/O ports
+  // beginning of pain
+  cli();
+  usart_init(8);
+  adc_init();
+  t1_init();
+
+  bitSet(DDRB,PB5);
+
   bitClear(DDRD,THERMISTOR);    // AIN0
   bitClear(DDRD,POTENTIOMETER); // AIN1
 
@@ -170,10 +178,14 @@ int main(void) {
   char PrevFanOnTime[CHAR_BUFFER];
   char FanTurnOnTime[CHAR_BUFFER];
 
-  int channelswap = 0;
   // Set as inputs
   bitClear(DDRD,THERMISTOR);    // AIN0
   bitClear(DDRD,POTENTIOMETER); // AIN1
+  
+  bitSet(DDRB,LED); // LED
+
+  int channelswap = 0;
+  uint16_t therm_read, pot_read;
 
   bitClear(DDRD,ROTARY_CLK);
   bitClear(DDRD,ROTARY_DT);
@@ -197,7 +209,7 @@ int main(void) {
 
   //Initialise TC0 with prescaler of 1024
   bitSet(TCCR0B, CS02);
-  // bitSet(TCCR0B, CS00);
+  bitSet(TCCR0B, CS00);
 
   bitClear(TCCR0B, FOC0A);
   bitClear(TCCR0B, FOC0B);
@@ -209,34 +221,30 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-
-  OCR0A = 156;
-  usart_init(8); // 103-9600 bps; 8-115200
-  // USART interrupt
+  //set USART interrupts
   bitSet(UCSR0B, UDRIE0);
-  bitSet(SREG, SREG_I);
+  /* bitSet(SREG, SREG_I); */
 
-  adc_init();
-  t1_init();
+  OCR0A = 78;
   sei();
 
   usart_queue = queue_init();
 
   while(1)
   {
-    COMPARE = bitRead(ACSR,ACO); // Determine AC output
     bitSet(PORTB,PD6);
     bitClear(PORTB,PD6);
 
     if(COMPARE > 0 && rotary_button_toggle) {
-      OCR0B = (int)(156 * motor_duty);
+      OCR0B = (int)(78 * motor_duty);
       clock_to_time(numOv-FanTURNONtime,LiveFanOnTime);
       enqueue_string(&usart_queue, ">Fan Uptime:");
       enqueue_string(&usart_queue, "Fan ON duration - ");
       enqueue_string(&usart_queue, LiveFanOnTime);
       enqueue_string(&usart_queue, "|t");
       enqueue(&usart_queue, '\n');
-    } else {
+    }
+    else {
       OCR0B = 1;
       clock_to_time(abs(FanTURNOFFtime - FanTURNONtime),PrevFanOnTime);
       clock_to_time(FanTURNONtime,FanTurnOnTime);
@@ -253,13 +261,15 @@ int main(void) {
     enqueue_float(&usart_queue, motor_duty, 2, 3);
     enqueue(&usart_queue, '\n');
 
+    COMPARE = 35*bitRead(ACSR,ACO);
+
     enqueue_string(&usart_queue, ">OUTPUT:");
     enqueue_float(&usart_queue, COMPARE + 0.0,3,1);
     enqueue(&usart_queue, '\n');
 
     handle_rotary();
 
-
+    
     bitSet(ADCSRA,ADSC); // Start ADC conversion
     while(bitRead(ADCSRA,ADSC));
     // Read result
@@ -268,7 +278,7 @@ int main(void) {
         therm_read = ADC;
 
         enqueue_string(&usart_queue, ">Thermistor Temperature (C):");
-        enqueue_float(&usart_queue, result_to_tempC(therm_read),5,1);
+        enqueue_float(&usart_queue, result_to_tempC(therm_read),7,1);
         enqueue(&usart_queue, '\n');
     }
     if(channelswap)
@@ -276,7 +286,7 @@ int main(void) {
         pot_read = ADC;
 
         enqueue_string(&usart_queue, ">Potentiometer Temperature (C):");
-        enqueue_float(&usart_queue, result_to_tempC(pot_read),5,1);
+        enqueue_float(&usart_queue, result_to_tempC(pot_read),7,1);
         enqueue(&usart_queue, '\n');
     }
 
@@ -313,23 +323,37 @@ void handle_rotary() {
   }
 }
 
-/* Initialises Timer1 - used for Input Capture */
-void t1_init()
+float result_to_tempC(uint16_t result)
 {
-    bitSet(ACSR, ACIC);      // Enable the input capture function in TCNT1 to be triggered by AC
-    bitSet(TIMSK1, ICIE1);   // TCNT1 Input Capture Interrupt Enable
-    bitSet(TCCR1B, ICES1);   // Capture on RISING edge
-    bitClear(TCCR1B, WGM13); // Enable TCNT1 as CTC mode
-    bitSet(TCCR1B, ICNC1);   // Input Capture Noise Canceler
-    bitSet(TCCR1B, WGM12);
-    bitClear(TCCR1A, WGM11);
-    bitClear(TCCR1A, WGM10);
-    TCCR1B &= 0xF8; // Set prescaler = 1024
-    TCCR1B |= 2;
-    OCR1A = TOP - 1;
-    bitSet(TIMSK1, OCIE1A); // Timer/Counter1, Output Compare A Match Interrupt Enable
+    float tempReading = result;
+    double tempK = log(10000.0 * ((1023.0 / tempReading - 1)));
+    tempK = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * tempK * tempK)) * tempK); // Kelvin
+    float tempC = tempK - 273.15;
+    return tempC;
 }
+void adc_init()
+{
+    // Configure ADC reference Voltage - 5V
+    bitSet(ADMUX, REFS0);
+    bitClear(ADMUX, REFS1);
 
+    // Configure ADC clock prescaler - P = 128 (111)
+    bitSet(ADCSRA, ADPS0);
+    bitSet(ADCSRA, ADPS1);
+    bitSet(ADCSRA, ADPS2);  
+
+    // Configure ADC Input channel - ADC0 (0000) - PC0/A0
+    bitClear(DDRC, INPUT); // PC0 as INPUT - Analog IN
+    int channel = 0;
+    ADMUX &= 0xF0;    // Clear bits 3:0
+    ADMUX |= channel; // Set bits 3:0 = channel
+
+    // Mode Selection - Single Conversion Mode
+    bitClear(ADCSRA, ADATE);
+
+    // Enable ADC
+    bitSet(ADCSRA, ADEN);
+}
 void clock_to_time(double clocktime, char timedisp[])
 {
     int sechour = 60; // Number of seconds in an hour. Variable for debugging and clock testing purposes.
@@ -374,34 +398,18 @@ void clock_to_time(double clocktime, char timedisp[])
     timedisp[12-len] = '\0';
 }
 
-float result_to_tempC(uint16_t result)
+void t1_init()
 {
-    float tempReading = result;
-    double tempK = log(10000.0 * ((1023.0 / tempReading - 1)));
-    tempK = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * tempK * tempK)) * tempK); // Kelvin
-    float tempC = tempK - 273.15;
-    return tempC;
-}
-void adc_init()
-{
-    // Configure ADC reference Voltage - 5V
-    bitSet(ADMUX, REFS0);
-    bitClear(ADMUX, REFS1);
-
-    // Configure ADC clock prescaler - P = 128 (111)
-    bitSet(ADCSRA, ADPS0);
-    bitSet(ADCSRA, ADPS1);
-    bitSet(ADCSRA, ADPS2);
-
-    // Configure ADC Input channel - ADC0 (0000) - PC0/A0
-    bitClear(DDRC, INPUT); // PC0 as INPUT - Analog IN
-    int channel = 0;
-    ADMUX &= 0xF0;    // Clear bits 3:0
-    ADMUX |= channel; // Set bits 3:0 = channel
-
-    // Mode Selection - Single Conversion Mode
-    bitClear(ADCSRA, ADATE);
-
-    // Enable ADC
-    bitSet(ADCSRA, ADEN);
+    bitSet(ACSR, ACIC);      // Enable the input capture function in TCNT1 to be triggered by AC
+    bitSet(TIMSK1, ICIE1);   // TCNT1 Input Capture Interrupt Enable
+    bitSet(TCCR1B, ICES1);   // Capture on RISING edge
+    bitClear(TCCR1B, WGM13); // Enable TCNT1 as CTC mode
+    bitSet(TCCR1B, ICNC1);   // Input Capture Noise Canceler
+    bitSet(TCCR1B, WGM12);
+    bitClear(TCCR1A, WGM11);
+    bitClear(TCCR1A, WGM10);
+    TCCR1B &= 0xF8; // Set prescaler = 1024
+    TCCR1B |= 2;
+    OCR1A = TOP - 1;
+    bitSet(TIMSK1, OCIE1A); // Timer/Counter1, Output Compare A Match Interrupt Enable
 }

@@ -189,7 +189,7 @@ int main(void) {
 
   //Initialise TC0 with prescaler of 1024
   bitSet(TCCR0B, CS02);
-  bitSet(TCCR0B, CS00);
+  // bitSet(TCCR0B, CS00);
 
   bitClear(TCCR0B, FOC0A);
   bitClear(TCCR0B, FOC0B);
@@ -201,7 +201,7 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  OCR0A = 78;
+  OCR0A = 156;
   usart_init(8); // 103-9600 bps; 8-115200
   adc_init();
   t1_init();
@@ -214,7 +214,7 @@ int main(void) {
     bitClear(PORTB,PD6);
 
     if(COMPARE > 0 && rotary_button_toggle) {
-      OCR0B = (int)(78 * motor_duty);
+      OCR0B = (int)(156 * motor_duty);
       clock_to_time(numOv-FanTURNONtime,LiveFanOnTime);
       usart_tx_string(">Fan Uptime:");
       usart_tx_string("Fan ON duration - ");

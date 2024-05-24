@@ -10,12 +10,8 @@
 
 #define ROTARY_CLK PD2
 #define ROTARY_DT PD3
-<<<<<<< HEAD
-#define ROTARY_BTN PD2 // normally open, shorted to GND on press
-=======
 // normally open, shorted to GND on press
 #define ROTARY_BTN PD4
->>>>>>> big_merge
 
 #define M1_PWM PD5
 #define M1_PSTV_DIRECTION PB5
@@ -27,14 +23,6 @@
 
 #define BUFFER_SIZE 50
 
-<<<<<<< HEAD
-volatile float motor_duty = 0.5;
-//prevents external interrupt from triggering too many increments
-volatile bool debounce = 0;
-volatile bool rotary_button_toggle = 0;
-volatile bool acic_result = 0;
-volatile int compare = 0;
-=======
 enum ROTARY_STATE {
   START,
   INTENT_CLOCKWISE,
@@ -47,7 +35,6 @@ volatile float motor_duty = 0.7;
 volatile bool rotary_button_toggle = 1;
 volatile int rotary_state = START;
 
->>>>>>> big_merge
 unsigned char data_buffer[BUFFER_SIZE];
 unsigned char *pTx = data_buffer;
 
@@ -121,28 +108,7 @@ ISR(INT0_vect) {
       }
   }
 
-<<<<<<< HEAD
-ISR(USART_UDRE_vect) {
-  if(*pTx == '\0') {
-    pTx = data_buffer;
-  } else {
-    UDR0 = *pTx;
-    pTx++;
-  }
 }
-
-ISR(ANALOG_COMP_vect) {
-  bitClear(ACSR, ACIE);
-  bitSet(ACSR, ACD);
-  compare = 35*bitRead(ACSR,ACO);
-  bitClear(ACSR, ACD);
-  bitSet(ACSR, ACIE);
-  bitInverse(ACSR, ACIS0);
-}
-
-=======
-}
->>>>>>> big_merge
 
 int main(void) {
   // beginning of pain
@@ -155,6 +121,7 @@ int main(void) {
   bitClear(DDRD,POTENTIOMETER); // AIN1
 
   int channelswap = 0;
+  int COMPARE = 0;
   uint16_t therm_read, pot_read;
 
   bitClear(DDRD,ROTARY_CLK);
@@ -177,8 +144,9 @@ int main(void) {
   bitSet(TCCR0A, WGM00);
   bitSet(TCCR0A, COM0B1);
 
-  //Initialise TC0 with prescaler of 256
+  //Initialise TC0 with prescaler of 1024
   bitSet(TCCR0B, CS02);
+  bitSet(TCCR0B, CS00);
 
   bitClear(TCCR0B, FOC0A);
   bitClear(TCCR0B, FOC0B);
@@ -190,25 +158,17 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  //set USART interrupts
-  bitSet(UCSR0B, UDRIE0);
-  bitSet(SREG, SREG_I);
-
-  bitSet(ACSR, ACIE);
-  bitSet(ACSR, ACIS1);
-  bitSet(ACSR, ACIS0);
-
-  OCR0A = 255;
-  OCR0B = 255;
+  OCR0A = 78;
 
   sei();
   while(1)
   {
+    COMPARE = bitRead(ACSR,ACO); // Determine AC output
     bitSet(PORTB,PD6);
     bitClear(PORTB,PD6);
 
     if(COMPARE > 0 && rotary_button_toggle) {
-      OCR0B = (int)(255 * motor_duty);
+      OCR0B = (int)(78 * motor_duty);
     }
     else {
       OCR0B = 1;
@@ -218,14 +178,8 @@ int main(void) {
     usart_tx_float(motor_duty, 1, 2);
     usart_transmit('\n');
 
-    if(compare > 0) {
-      OCR0B = 1;
-    } else {
-      OCR0B = 255 * motor_duty;
-    }
-
     usart_tx_string(">OUTPUT:");
-    usart_tx_float(compare,3,0);
+    usart_tx_float(COMPARE,3,0);
     usart_transmit('\n');
 
     handle_rotary();

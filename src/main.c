@@ -17,7 +17,6 @@
 
 #define THERMISTOR PD6
 #define POTENTIOMETER PD7
-#define LED PB5
 #define INPUT PC0
 
 #define BUFFER_SIZE 50
@@ -72,7 +71,7 @@ ISR(INT1_vect) {
         }
       }
   }
-  
+
 }
 
 // CLK INTERRUPT
@@ -106,16 +105,7 @@ ISR(INT0_vect) {
         }
       }
   }
-     
-}
 
-ISR(USART_UDRE_vect) {
-  if(*pTx == '\0') {
-    pTx = data_buffer;
-  } else {
-    UDR0 = *pTx;
-    pTx++;
-  }
 }
 
 int main(void) {
@@ -124,13 +114,9 @@ int main(void) {
   usart_init(8);
   adc_init();
 
-  bitSet(DDRB,PB5);
-
   // Set as inputs
   bitClear(DDRD,THERMISTOR);    // AIN0
   bitClear(DDRD,POTENTIOMETER); // AIN1
-  
-  bitSet(DDRB,LED); // LED
 
   int channelswap = 0;
   int COMPARE;
@@ -158,7 +144,6 @@ int main(void) {
 
   //Initialise TC0 with prescaler of 1024
   bitSet(TCCR0B, CS02);
-  bitSet(TCCR0B, CS00);
 
   bitClear(TCCR0B, FOC0A);
   bitClear(TCCR0B, FOC0B);
@@ -170,11 +155,7 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
-  //set USART interrupts
-  bitSet(UCSR0B, UDRIE0);
-  bitSet(SREG, SREG_I);
-
-  OCR0A = 78;
+  OCR0A = 255;
   sei();
 
   while(1)
@@ -183,7 +164,7 @@ int main(void) {
     bitClear(PORTB,PD6);
 
     if(COMPARE > 0 && rotary_button_toggle) {
-      OCR0B = (int)(78 * motor_duty);
+      OCR0B = (int)(255 * motor_duty);
     }
     else {
       OCR0B = 1;
@@ -203,7 +184,7 @@ int main(void) {
 
     handle_rotary();
 
-    
+
     bitSet(ADCSRA,ADSC); // Start ADC conversion
     while(bitRead(ADCSRA,ADSC));
     // Read result
@@ -274,7 +255,7 @@ void adc_init()
     // Configure ADC clock prescaler - P = 128 (111)
     bitSet(ADCSRA, ADPS0);
     bitSet(ADCSRA, ADPS1);
-    bitSet(ADCSRA, ADPS2);  
+    bitSet(ADCSRA, ADPS2);
 
     // Configure ADC Input channel - ADC0 (0000) - PC0/A0
     bitClear(DDRC, INPUT); // PC0 as INPUT - Analog IN

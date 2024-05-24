@@ -8,9 +8,14 @@
 #include "usart.h"
 #include "bit.h"
 
-#define ROTARY_CLK PD4
+#define ROTARY_CLK PD2
 #define ROTARY_DT PD3
+<<<<<<< HEAD
 #define ROTARY_BTN PD2 // normally open, shorted to GND on press
+=======
+// normally open, shorted to GND on press
+#define ROTARY_BTN PD4
+>>>>>>> big_merge
 
 #define M1_PWM PD5
 #define M1_PSTV_DIRECTION PB5
@@ -22,47 +27,101 @@
 
 #define BUFFER_SIZE 50
 
+<<<<<<< HEAD
 volatile float motor_duty = 0.5;
 //prevents external interrupt from triggering too many increments
 volatile bool debounce = 0;
 volatile bool rotary_button_toggle = 0;
 volatile bool acic_result = 0;
 volatile int compare = 0;
+=======
+enum ROTARY_STATE {
+  START,
+  INTENT_CLOCKWISE,
+  INTENT_ANTICLOCKWISE,
+  CLOCKWISE,
+  ANTICLOCKWISE
+};
+
+volatile float motor_duty = 0.7;
+volatile bool rotary_button_toggle = 1;
+volatile int rotary_state = START;
+
+>>>>>>> big_merge
 unsigned char data_buffer[BUFFER_SIZE];
 unsigned char *pTx = data_buffer;
 
 void adc_init();
 float result_to_tempC(uint16_t result);
+void handle_rotary();
 
+// DT INTERRUPT
 ISR(INT1_vect) {
-  if (debounce) return;
-  debounce = 1;
-  _delay_ms(5);
+  bool dt = bitRead(PIND, ROTARY_DT);
+  bool clk = bitRead(PIND, ROTARY_CLK);
 
-  if (bitRead(PIND, ROTARY_CLK) == bitRead(PIND, ROTARY_DT)) {
-    // clockwise
-    motor_duty += 0.05;
-  } else {
-    // anti clock
-    motor_duty -= 0.05;
+  switch (rotary_state) {
+    case START:
+      if (dt) {
+        rotary_state = INTENT_ANTICLOCKWISE;
+      } else {
+        if (clk) {
+          rotary_state = INTENT_ANTICLOCKWISE;
+        } else {
+          // invalid state
+          rotary_state = START;
+        }
+      }
+      break;
+
+    case INTENT_CLOCKWISE:
+      if (dt) {
+        rotary_state = CLOCKWISE;
+      } else {
+        if (!clk) {
+          rotary_state = CLOCKWISE;
+        } else {
+          // invalid state
+          rotary_state = START;
+        }
+      }
   }
 
-  if (motor_duty > 0.98) {
-    motor_duty = 0.98;
-  }
-  if (motor_duty < 0.5) {
-    motor_duty = 0.5;
-  }
 }
 
-// rotary button
+// CLK INTERRUPT
 ISR(INT0_vect) {
-  _delay_ms(10);
-  if (bitRead(PIND, ROTARY_BTN) == 0) {
-    rotary_button_toggle = !rotary_button_toggle;
-  }
-}
+  bool dt = bitRead(PIND, ROTARY_DT);
+  bool clk = bitRead(PIND, ROTARY_CLK);
 
+  switch (rotary_state) {
+    case START:
+      if (clk) {
+        rotary_state = INTENT_CLOCKWISE;
+      } else {
+        if (dt) {
+          rotary_state = INTENT_CLOCKWISE;
+        } else {
+          // invalid state
+          rotary_state = START;
+        }
+      }
+      break;
+
+    case INTENT_ANTICLOCKWISE:
+      if (clk) {
+        rotary_state = ANTICLOCKWISE;
+      } else {
+        if (!dt) {
+          rotary_state = ANTICLOCKWISE;
+        } else {
+          // invalid state
+          rotary_state = START;
+        }
+      }
+  }
+
+<<<<<<< HEAD
 ISR(USART_UDRE_vect) {
   if(*pTx == '\0') {
     pTx = data_buffer;
@@ -81,6 +140,9 @@ ISR(ANALOG_COMP_vect) {
   bitInverse(ACSR, ACIS0);
 }
 
+=======
+}
+>>>>>>> big_merge
 
 int main(void) {
   // beginning of pain
@@ -102,8 +164,8 @@ int main(void) {
   // enable pullup resistor
   bitSet(PORTD, ROTARY_BTN);
 
-  bitSet(EICRA, ISC01);
-  bitClear(EICRA, ISC00);
+  bitClear(EICRA, ISC01);
+  bitSet(EICRA, ISC00);
   bitSet(EIMSK, INT0);
 
   bitClear(EICRA, ISC11);
@@ -142,7 +204,15 @@ int main(void) {
   sei();
   while(1)
   {
-    debounce = 0;
+    bitSet(PORTB,PD6);
+    bitClear(PORTB,PD6);
+
+    if(COMPARE > 0 && rotary_button_toggle) {
+      OCR0B = (int)(255 * motor_duty);
+    }
+    else {
+      OCR0B = 1;
+    }
 
     usart_tx_string(">a:");
     usart_tx_float(motor_duty, 1, 2);
@@ -158,16 +228,15 @@ int main(void) {
     usart_tx_float(compare,3,0);
     usart_transmit('\n');
 
+    handle_rotary();
+
+
     bitSet(ADCSRA,ADSC); // Start ADC conversion
     while(bitRead(ADCSRA,ADSC));
     // Read result
     if(!channelswap)
     {
         therm_read = ADC;
-
-        usart_tx_string(">Thermistor Analog IN:");
-        usart_tx_float(therm_read,7,1);
-        usart_transmit('\n');
 
         usart_tx_string(">Thermistor Temperature (C):");
         usart_tx_float(result_to_tempC(therm_read),7,1);
@@ -176,9 +245,6 @@ int main(void) {
     if(channelswap)
     {
         pot_read = ADC;
-        usart_tx_string(">Potentiometer Analog IN:");
-        usart_tx_float(pot_read,7,1);
-        usart_transmit('\n');
 
         usart_tx_string(">Potentiometer Temperature (C):");
         usart_tx_float(result_to_tempC(pot_read),7,1);
@@ -189,6 +255,32 @@ int main(void) {
     ADMUX &= 0xF0;
     ADMUX |= channelswap;
 
+  }
+}
+
+void handle_rotary() {
+  if (rotary_state == CLOCKWISE) {
+    motor_duty += 0.05;
+    rotary_state = START;
+  } else if (rotary_state == ANTICLOCKWISE) {
+    motor_duty -= 0.05;
+    rotary_state = START;
+  }
+
+  if (bitRead(PIND, ROTARY_DT) == bitRead(PIND, ROTARY_CLK)) {
+    rotary_state = START;
+  }
+  if (motor_duty > 0.95) {
+    motor_duty = 0.95;
+  }
+  if (motor_duty < 0.1) {
+    motor_duty = 0.1;
+  }
+  if (bitRead(PIND, ROTARY_BTN) == 0) {
+    _delay_ms(60);
+    if (bitRead(PIND, ROTARY_BTN) == 0) {
+      rotary_button_toggle = !rotary_button_toggle;
+    }
   }
 }
 

@@ -209,8 +209,13 @@ int main(void) {
   bitSet(DDRB, M1_NGTV_DIRECTION);
   bitClear(PORTB, M1_NGTV_DIRECTION);
 
+
   OCR0A = 156;
   usart_init(8); // 103-9600 bps; 8-115200
+  // USART interrupt
+  bitSet(UCSR0B, UDRIE0);
+  bitSet(SREG, SREG_I);
+
   adc_init();
   t1_init();
   sei();
@@ -263,7 +268,7 @@ int main(void) {
         therm_read = ADC;
 
         enqueue_string(&usart_queue, ">Thermistor Temperature (C):");
-        enqueue_float(&usart_queue, result_to_tempC(therm_read),7,1);
+        enqueue_float(&usart_queue, result_to_tempC(therm_read),5,1);
         enqueue(&usart_queue, '\n');
     }
     if(channelswap)
@@ -271,7 +276,7 @@ int main(void) {
         pot_read = ADC;
 
         enqueue_string(&usart_queue, ">Potentiometer Temperature (C):");
-        enqueue_float(&usart_queue, result_to_tempC(pot_read),7,1);
+        enqueue_float(&usart_queue, result_to_tempC(pot_read),5,1);
         enqueue(&usart_queue, '\n');
     }
 
